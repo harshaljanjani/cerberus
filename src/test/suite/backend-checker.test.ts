@@ -1,11 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { runCheck } from '../../backend-checker';
+import { runCheck } from '../../backend-runner';
 
 suite('Backend Checker Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
-
     test('runCheck should return PASS for a successful command', async () => {
         if (!vscode.workspace.workspaceFolders) {
             assert.fail('Test requires an open folder in the workspace.');
@@ -15,7 +14,6 @@ suite('Backend Checker Test Suite', () => {
         const result = await runCheck('tensorflow', modelPyPath);
         assert.strictEqual(result.status, 'PASS');
     });
-
     test('runCheck should return FAIL for a failing command', async () => {
         if (!vscode.workspace.workspaceFolders) {
             assert.fail('Test requires an open folder in the workspace.');

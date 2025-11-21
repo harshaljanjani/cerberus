@@ -8,7 +8,6 @@ export function run(): Promise<void> {
         color: true
     });
     const testsRoot = path.resolve(__dirname, '..');
-
     return new Promise((c, e) => {
         glob('**/**.test.js', { cwd: testsRoot }, (err: Error | null, files: string[]) => {
             if (err) {

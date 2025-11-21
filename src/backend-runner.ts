@@ -24,7 +24,6 @@ export function runCheck(backend: string, targetFile: string): Promise<CheckResu
                 KERAS_BACKEND: backend
             }
         };
-
         exec(command, options, (error, stdout, stderr) => {
             if (error) {
                 resolve({ backend, status: 'FAIL', error: stderr });

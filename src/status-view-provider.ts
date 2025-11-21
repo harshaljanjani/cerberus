@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { CheckResult } from './backend-checker';
+import * as fs from 'fs';
+import { CheckResult } from './backend-runner';
 
-export class StatusSidebar implements vscode.WebviewViewProvider {
+export class StatusViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'cerberus.statusView';
 
     private _view?: vscode.WebviewView;
@@ -19,6 +20,7 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
         this._wasRendered = false;
         webviewView.webview.options = {
             enableScripts: true,
+            enableCommandUris: true,
             localResourceRoots: [this._extensionUri]
         };
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
@@ -44,11 +46,25 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
         const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'cerberus-icon.svg'));
         const config = vscode.workspace.getConfiguration('cerberus');
         const activeHeads = config.get<string[]>('activeHeads', []);
+        let rawTestFiles = config.get<string[]>('testSuiteFiles', []);
+        const validUniqueFiles = [...new Set(rawTestFiles.filter(f => fs.existsSync(f)))];
+        if (validUniqueFiles.length !== rawTestFiles.length) {
+            config.update('testSuiteFiles', validUniqueFiles, vscode.ConfigurationTarget.Workspace);
+            rawTestFiles = validUniqueFiles; 
+        }
         const kerasRed = '#D00000';
+        const cerberusBlue = '#007acc';
         const shouldAnimate = !this._wasRendered;
         this._wasRendered = true;
         const animationClass = shouldAnimate ? 'slide-in' : '';
+        const fileListHtml = rawTestFiles.length > 0 
+            ? `<div class="file-list-container">
+                 <div class="section-label">Target Test Suite</div>
+                 ${rawTestFiles.map(f => `<div class="file-item" title="${f}"><span class="file-icon">📄</span> ${f.split(/[\\/]/).pop()}</div>`).join('')}
+               </div>`
+            : `<div class="file-list-container empty"><div class="section-label">Target Test Suite</div><div class="sub-text">No tests configured.</div></div>`;
         let content: string;
+        let globalAgentHtml = '';
         if (running) {
             content = activeHeads.map((backend, index) => {
                 const delayStyle = shouldAnimate ? `style="animation-delay: ${index * 0.1}s"` : '';
@@ -61,13 +77,26 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                 </div>`;
             }).join('');
         } else if (this._results.length > 0) {
+            const failsWithInsight = this._results.filter(r => r.status === 'FAIL' && r.aiInsight);
+            const uniqueInsights = [...new Set(failsWithInsight.map(r => r.aiInsight))];
+            const hasGlobalInsight = failsWithInsight.length > 1 && uniqueInsights.length === 1;
+            if (hasGlobalInsight) {
+                globalAgentHtml = `
+                <div class="card agent-card ${animationClass}">
+                    <div class="card-header">
+                        <span class="backend-name" style="color: var(--vscode-textLink-foreground);">Cerberus Insight</span>
+                        <div class="icon icon-mask" style="-webkit-mask-image: url('${logoUri}'); mask-image: url('${logoUri}');"></div>
+                    </div>
+                    <div class="ai-content">${renderMarkdown(uniqueInsights[0]!)}</div>
+                </div>`;
+            }
             content = this._results.map((result, index) => {
                 const statusIcon = result.status === 'PASS' 
                     ? `<span class="icon pass"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z" fill="currentColor"/></svg></span>` 
                     : `<span class="icon fail"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z" fill="currentColor"/></svg></span>`;
                 const statusClass = result.status === 'PASS' ? 'pass' : 'fail';
                 const delayStyle = shouldAnimate ? `style="animation-delay: ${index * 0.1}s"` : '';
-                const aiSection = result.aiInsight 
+                const aiSection = (!hasGlobalInsight && result.aiInsight && result.aiInsight.length > 0)
                     ? `<div class="ai-insight">
                         <div class="ai-label">Agent</div>
                         <div class="ai-content">${renderMarkdown(result.aiInsight)}</div>
@@ -88,7 +117,7 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                 </div>`;
             }).join('');
         } else {
-            const fadeClass = shouldAnimate ? 'fade-in' : '';
+             const fadeClass = shouldAnimate ? 'fade-in' : '';
             content = `
                 <div class="empty-state ${fadeClass}">
                     <div class="logo-placeholder">
@@ -101,11 +130,8 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                     </div>
                 </div>`;
         }
-
         const headerClass = shouldAnimate ? 'animate-header' : '';
         const subtitleClass = shouldAnimate ? 'animate-subtitle' : '';
-        const actionsClass = shouldAnimate ? 'animate-actions' : '';
-
         return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -117,8 +143,9 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
                 <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Display:wght@400;600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
                 <style>
-                    :root {
+                     :root {
                         --keras-red: ${kerasRed};
+                        --cerberus-blue: ${cerberusBlue};
                         --card-bg: var(--vscode-sideBar-background);
                         --card-border: var(--vscode-widget-border);
                         --card-hover: var(--vscode-list-hoverBackground);
@@ -134,6 +161,30 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                         margin: 0;
                         overflow-x: hidden;
                     }
+
+                    .file-list-container {
+                        margin-bottom: 20px;
+                        background: rgba(0,0,0,0.05);
+                        border-radius: 6px;
+                        padding: 10px;
+                    }
+                    .section-label {
+                        font-size: 10px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        color: var(--vscode-descriptionForeground);
+                        margin-bottom: 8px;
+                        letter-spacing: 1px;
+                    }
+                    .file-item {
+                        font-size: 12px;
+                        padding: 4px 0;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        color: var(--vscode-foreground);
+                    }
+                    .file-icon { opacity: 0.7; }
 
                     /* Agents */
                     .ai-insight {
@@ -168,7 +219,6 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                     /* Helper classes for one-time animations */
                     .animate-header { animation: slideIn 0.4s ease-out forwards; }
                     .animate-subtitle { opacity: 0; animation: slideIn 0.4s ease-out 0.1s forwards; }
-                    .animate-actions { opacity: 0; animation: slideIn 0.5s ease-out 0.4s forwards; }
                     
                     .slide-in {
                         opacity: 0; /* Start hidden only if animating */
@@ -206,7 +256,6 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                         transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
                         position: relative;
                         overflow: hidden;
-                        /* No default opacity or animation here */
                     }
 
                     .card:hover {
@@ -221,6 +270,15 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
 
                     .card.pass {
                         border-left: 4px solid var(--vscode-testing-iconPassed);
+                    }
+
+                    /* Global Agent Card */
+                    .card.agent-card {
+                        border-left: 4px solid var(--cerberus-blue);
+                        background: rgba(0, 122, 204, 0.05);
+                    }
+                    .card.agent-card:hover {
+                         border-color: var(--cerberus-blue);
                     }
 
                     .card-header {
@@ -244,6 +302,16 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                         align-items: center;
                         justify-content: center;
                     }
+
+                    .icon-mask {
+                        background-color: var(--keras-red);
+                        -webkit-mask-size: contain;
+                        mask-size: contain;
+                        -webkit-mask-repeat: no-repeat;
+                        mask-repeat: no-repeat;
+                        -webkit-mask-position: center;
+                        mask-position: center;
+                    }
                     
                     .icon.pass { color: var(--vscode-testing-iconPassed); }
                     .icon.fail { color: var(--keras-red); }
@@ -253,7 +321,7 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
                         margin-top: 12px;
                         padding-top: 12px;
                         border-top: 1px solid var(--vscode-widget-border);
-                        animation: fadeIn 0.3s ease-in; /* Keep this for new errors appearing */
+                        animation: fadeIn 0.3s ease-in;
                     }
 
                     .error-label {
@@ -292,34 +360,6 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
 
                     @keyframes spin {
                         to { transform: rotate(360deg); }
-                    }
-
-                    /* Action Button */
-                    .actions {
-                        margin-top: 24px;
-                        display: flex;
-                        justify-content: center;
-                    }
-
-                    .btn-primary {
-                        background-color: var(--keras-red);
-                        color: #fff;
-                        text-decoration: none;
-                        padding: 8px 16px;
-                        border-radius: 4px;
-                        font-size: 13px;
-                        font-weight: 500;
-                        display: inline-block;
-                        transition: opacity 0.2s, transform 0.1s;
-                    }
-
-                    .btn-primary:hover {
-                        opacity: 0.9;
-                        transform: scale(1.02);
-                    }
-                    
-                    .btn-primary:active {
-                        transform: scale(0.98);
                     }
 
                     /* Empty State */
@@ -364,15 +404,14 @@ export class StatusSidebar implements vscode.WebviewViewProvider {
             <body>
                 <header>
                     <h1 class="${headerClass}">Backend Status</h1>
-                    <span class="subtitle ${subtitleClass}">Multi-backend Compatibility</span>
+                    <span class="subtitle ${subtitleClass}">Multi-Backend Compatibility</span>
                 </header>
 
-                <div id="status-container">
-                    ${content}
-                </div>
+                ${fileListHtml}
 
-                <div class="actions ${actionsClass}">
-                    <a href="command:cerberus.runChecks" class="btn-primary">Run Checks</a>
+                <div id="status-container">
+                    ${globalAgentHtml}
+                    ${content}
                 </div>
             </body>
             </html>`;

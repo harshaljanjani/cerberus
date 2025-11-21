@@ -2,7 +2,7 @@
   "name": "cerberus",
   "displayName": "Cerberus",
   "description": "An Antigravity extension for developing Keras 3 models the right way.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:cerberus.statusView"
+    "onView:cerberus.statusView",
+    "onView:cerberus.coreModulesView"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -18,6 +19,32 @@
       {
         "command": "cerberus.runChecks",
         "title": "Cerberus: Run Backend Compatibility Checks"
+      },
+      {
+        "command": "cerberus.classifyAsTest",
+        "title": "Cerberus: Classify as Test Suite"
+      },
+      {
+        "command": "cerberus.classifyAsCore",
+        "title": "Cerberus: Classify as Core Module"
+      },
+      {
+        "command": "cerberus.removeClassification",
+        "title": "Cerberus: Remove Classification"
+      },
+      {
+        "command": "cerberus.generateSummary",
+        "title": "Cerberus: Generate Core Module Summary"
+      },
+      {
+        "command": "cerberus.toggleAgent",
+        "title": "Cerberus: Toggle Agent Summaries"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "cerberus.contextMenu",
+        "label": "Cerberus"
       }
     ],
     "configuration": {
@@ -44,6 +71,32 @@
               "torch"
             ]
           }
+        },
+        "cerberus.testSuiteFiles": {
+          "type": "array",
+          "default": [],
+          "description": "Files classified as Test Suite (will be executed on save).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cerberus.coreModuleFiles": {
+          "type": "array",
+          "default": [],
+          "description": "Files classified as Core Modules (will be analyzed for compatibility).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cerberus.enableAgentSummaries": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable AI agent summaries for failed tests."
+        },
+        "cerberus.monitorCoreModules": {
+          "type": "boolean",
+          "default": false,
+          "description": "Monitor Core Module changes for compatibility issues on save."
         }
       }
     },
@@ -60,8 +113,41 @@
       "cerberus-sidebar": [
         {
           "id": "cerberus.statusView",
-          "name": "Backend Status",
+          "name": "Test Suite Status",
           "type": "webview"
+        },
+        {
+          "id": "cerberus.coreModulesView",
+          "name": "Core Modules",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "cerberus.contextMenu",
+          "group": "cerberus_group"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "cerberus.contextMenu",
+          "group": "cerberus_group"
+        }
+      ],
+      "cerberus.contextMenu": [
+        {
+          "command": "cerberus.classifyAsTest",
+          "group": "1_classification@1"
+        },
+        {
+          "command": "cerberus.classifyAsCore",
+          "group": "1_classification@2"
+        },
+        {
+          "command": "cerberus.removeClassification",
+          "group": "1_classification@3"
         }
       ]
     }
