@@ -21,6 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(CoreModulesViewProvider.viewType, coreModulesSidebar)
     );
 
+    if (vscode.window.activeTextEditor) {
+        coreModulesSidebar.updateForFile(vscode.window.activeTextEditor.document);
+    }
     const classifyAsTestCommand = vscode.commands.registerCommand('cerberus.classifyAsTest', async (uri?: vscode.Uri) => {
         let filePath = uri?.fsPath;
         if (!filePath) {
@@ -33,19 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
         await addFileToClassification(filePath, 'testSuite');
         vscode.window.showInformationMessage(`Added ${path.basename(filePath)} to Test Suite.`);
-    });
-    const classifyAsCoreCommand = vscode.commands.registerCommand('cerberus.classifyAsCore', async (uri?: vscode.Uri) => {
-        let filePath = uri?.fsPath;
-        if (!filePath) {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                vscode.window.showWarningMessage('No file selected to classify.');
-                return;
-            }
-            filePath = editor.document.uri.fsPath;
-        }
-        await addFileToClassification(filePath, 'coreModules');
-        vscode.window.showInformationMessage(`Added ${path.basename(filePath)} to Core Modules.`);
+        statusSidebar.refresh();
     });
     const removeClassificationCommand = vscode.commands.registerCommand('cerberus.removeClassification', async (uri?: vscode.Uri) => {
         let filePath = uri?.fsPath;
@@ -59,14 +50,28 @@ export function activate(context: vscode.ExtensionContext) {
         }
         await removeFileFromClassification(filePath);
         vscode.window.showInformationMessage(`Removed ${path.basename(filePath)} from classification.`);
+        statusSidebar.refresh();
     });
-    const generateSummaryCommand = vscode.commands.registerCommand('cerberus.generateSummary', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
+    const generateSummaryCommand = vscode.commands.registerCommand('cerberus.generateSummary', async (uri?: vscode.Uri) => {
+        let document: vscode.TextDocument | undefined;
+        if (uri && uri instanceof vscode.Uri) {
+            try { document = await vscode.workspace.openTextDocument(uri); } catch (e) {}
+        }
+        if (!document) document = vscode.window.activeTextEditor?.document;
+        if (!document) {
             vscode.window.showWarningMessage('No active file.');
             return;
         }
-        await generateCoreModuleSummary(editor.document, coreModulesSidebar);
+        await generateCoreModuleSummary(document, coreModulesSidebar);
+    });
+    const summarizeEntityCommand = vscode.commands.registerCommand('cerberus.summarizeEntity', async (name: string, type: string, uri?: vscode.Uri) => {
+        let document: vscode.TextDocument | undefined;
+        if (uri && uri instanceof vscode.Uri) {
+            try { document = await vscode.workspace.openTextDocument(uri); } catch (e) {}
+        }
+        if (!document) document = vscode.window.activeTextEditor?.document;
+        if (!document) return;
+        await generateEntitySummary(document, name, coreModulesSidebar);
     });
     const toggleAgentCommand = vscode.commands.registerCommand('cerberus.toggleAgent', async () => {
         const config = vscode.workspace.getConfiguration('cerberus');
@@ -76,9 +81,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(
         classifyAsTestCommand,
-        classifyAsCoreCommand,
         removeClassificationCommand,
         generateSummaryCommand,
+        summarizeEntityCommand,
         toggleAgentCommand
     );
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(async document => {
@@ -86,22 +91,16 @@ export function activate(context: vscode.ExtensionContext) {
         const filePath = document.uri.fsPath;
         if (classification.testSuite.includes(filePath)) {
             await handleTestSuiteFileSave(document, statusSidebar);
-        } else if (classification.coreModules.includes(filePath)) {
-            const config = vscode.workspace.getConfiguration('cerberus');
-            const monitorCore = config.get<boolean>('monitorCoreModules', false);
-            if (monitorCore) {
-                await handleCoreModuleSave(document, coreModulesSidebar);
-            }
+        } 
+        const config = vscode.workspace.getConfiguration('cerberus');
+        const monitorCore = config.get<boolean>('monitorCoreModules', false);
+        if (monitorCore && document.languageId === 'python') {
+            await handleCoreModuleSave(document, coreModulesSidebar);
         }
     }));
     context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async editor => {
         if (!editor) return;
-        const classification = await getFileClassification();
-        const filePath = editor.document.uri.fsPath;
-        
-        if (classification.coreModules.includes(filePath)) {
-            coreModulesSidebar.updateForFile(editor.document);
-        }
+        coreModulesSidebar.updateForFile(editor.document);
     }));
 }
 
@@ -148,7 +147,7 @@ async function handleTestSuiteFileSave(document: vscode.TextDocument, sidebar: S
 }
 
 async function handleCoreModuleSave(document: vscode.TextDocument, sidebar: CoreModulesViewProvider) {
-    vscode.window.showInformationMessage('Cerberus: Analyzing Core Module changes...');
+    // vscode.window.showInformationMessage('Cerberus: Analyzing Core Module changes...');
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) return;
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
@@ -164,6 +163,23 @@ async function generateCoreModuleSummary(document: vscode.TextDocument, sidebar:
     const content = document.getText();
     const summary = await generateSummaryWithAgent(content, workspaceRoot);
     sidebar.updateSummary(summary);
+}
+
+async function generateEntitySummary(document: vscode.TextDocument, name: string, sidebar: CoreModulesViewProvider) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) return;
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const content = document.getText();
+    const agentScript = path.join(workspaceRoot, 'agent.py');
+    return new Promise<void>((resolve) => {
+        const command = `python "${agentScript}" "summarize-entity" "${workspaceRoot}" "${name}"`;
+        const process = exec(command, (err, stdout) => {
+            if (err) sidebar.updateEntitySummary(name, "Failed to generate summary.");
+            else sidebar.updateEntitySummary(name, stdout.trim());
+            resolve();
+        });
+        if (process.stdin) { process.stdin.write(content); process.stdin.end(); }
+    });
 }
 
 function runPyTest(backend: string, testFile: string, workspaceRoot: string): Promise<CheckResult> {
@@ -233,7 +249,10 @@ async function analyzeCompatibilityTips(document: vscode.TextDocument, workspace
             if (err) {
                 resolve(['Unable to generate compatibility tips.']);
             } else {
-                const tips = stdout.trim().split('\n').filter(t => t.length > 0);
+                const tips = stdout
+                    .split(/\r?\n(?=- )/)
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
                 resolve(tips.length > 0 ? tips : ['No compatibility issues detected.']);
             }
         });

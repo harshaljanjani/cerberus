@@ -41,6 +41,12 @@ export class StatusViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    public refresh() {
+        if (this._view) {
+            this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+        }
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview, running: boolean = false): string {
         const nonce = getNonce();
         const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'cerberus-icon.svg'));
@@ -403,7 +409,7 @@ export class StatusViewProvider implements vscode.WebviewViewProvider {
             </head>
             <body>
                 <header>
-                    <h1 class="${headerClass}">Backend Status</h1>
+                    <h1 class="${headerClass}">Test Suite View</h1>
                     <span class="subtitle ${subtitleClass}">Multi-Backend Compatibility</span>
                 </header>
 

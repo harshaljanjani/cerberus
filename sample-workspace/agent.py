@@ -177,6 +177,32 @@ def generate_summary(code_content):
     """
     return query_llm(prompt)
 
+def summarize_entity(code_content, entity_name):
+    try:
+        tree = ast.parse(code_content)
+        target_node = None
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == entity_name:
+                target_node = node
+                break
+        if not target_node:
+            return f"Could not find entity '{entity_name}'."
+        lines = code_content.splitlines()
+        start = target_node.lineno - 1
+        end = target_node.end_lineno
+        entity_source = "\n".join(lines[start:end])
+        prompt = f"""
+        Summarize this Python {type(target_node).__name__}: '{entity_name}'.
+        CODE:
+        ```python
+        {entity_source}
+        ```
+        TASK: Provide a concise (2-3 sentences) explanation of what this component does, its inputs/outputs, and its logic.
+        """
+        return query_llm(prompt)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: python agent.py <mode/backend> <workspace_root>")
@@ -187,6 +213,9 @@ def main():
     if mode_or_backend == "summarize":
         summary = generate_summary(input_data)
         print(summary)
+    elif mode_or_backend == "summarize-entity":
+        entity_name = sys.argv[3] if len(sys.argv) > 3 else ""
+        print(summarize_entity(input_data, entity_name))
     elif mode_or_backend == "compatibility-check":
         # compat tips.
         tips = analyze_compatibility_tips(input_data)
