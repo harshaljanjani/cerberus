@@ -15,6 +15,10 @@
 </div>
 <p align="center"><em>Video Tutorial!</em></p>
 
+#AISprint
+
+**Google Cloud credits are provided for this project.**
+
 **Cerberus** is a Google Antigravity extension designed to streamline the development and testing of multi-backend Keras models. It uses Gemini to ensure compatibility and provide Gemini-powered insights across different backend environments such as TensorFlow, JAX, and PyTorch. Cerberus helps you pre-emptively detect compatibility issues across backends and remain mindful of decisions that may cause problems down the line.
 Inspired from the mythical Cerberus that guards the underworld with its three heads, this extension simultaneously watches over your code’s behavior on three Keras backends, catching inconsistencies and failures before they become major issues.
 
