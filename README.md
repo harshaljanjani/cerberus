@@ -2,8 +2,6 @@
   <img src="https://github.com/user-attachments/assets/1c0f7ef7-c254-4a01-81e0-f7dfb03a3dfe" width="300">
 </p>
 
-<h1 align="center">Cerberus: Google Antigravity Extension with Gemini Insights for Keras Development</h1>
-
 <div align="center">
   <a href="https://www.youtube.com/embed/45kM17whfZo">
     <img 
@@ -13,7 +11,8 @@
     >
   </a>
 </div>
-<p align="center"><em>Video Tutorial!</em></p>
+
+### Cerberus: Google Antigravity Extension with Gemini Insights for Keras Development
 
 #AISprint
 
@@ -22,7 +21,7 @@
 **Cerberus** is a Google Antigravity extension designed to streamline the development and testing of multi-backend Keras models. It uses Gemini to ensure compatibility and provide Gemini-powered insights across different backend environments such as TensorFlow, JAX, and PyTorch. Cerberus helps you pre-emptively detect compatibility issues across backends and remain mindful of decisions that may cause problems down the line.
 Inspired from the mythical Cerberus that guards the underworld with its three heads, this extension simultaneously watches over your code’s behavior on three Keras backends, catching inconsistencies and failures before they become major issues.
 
-## Features
+### Features
 Cerberus integrates seamlessly into your Google Antigravity workflow, offering two primary sidebar views: the **Test Suite View** and the **Core Modules View**.
 
 ### Test Suite View
@@ -44,7 +43,7 @@ This view helps you analyze, understand, and improve your core Python modules fo
     *   **Entity Summary**: Drill down and generate a summary for a specific class or function to understand its role and logic.
 *   **Live Compatibility Analysis**: Enable "Core Module Monitoring" to get real-time compatibility tips as you save your files. The agent analyzes your code for patterns that might cause issues across different Keras backends.
 
-## Setup & Configuration
+### Setup & Configuration
 
 1. **Clone the Repository**: Run it in Debug Mode using Google Antigravity (press F5, which launches Cerberus-beta in the `sample-workspace` for you).
 
@@ -81,7 +80,7 @@ This view helps you analyze, understand, and improve your core Python modules fo
     pip install google-generativeai
     ```
 
-## Usage
+### Usage
 
 ### Classifying Files
 To start using Cerberus, you need to tell it which files to watch.
@@ -101,13 +100,13 @@ If a test fails, expand the result card to view the error log and the Gemini-gen
 2.  Click **"Generate Summary"** to get an Gemini-powered overview of the entire module.
 3.  Click on any class or function in the list to expand its summary section. If a summary hasn't been generated yet, it will be fetched on-demand.
 
-## Commands
+### Commands
 You can access Cerberus commands through the Command Palette (`Ctrl + Shift + P` or `Cmd + Shift + P`):
 *   `Cerberus: Classify as Test Suite File`: Adds the active file to the test suite.
 *   `Cerberus: Remove Classification`: Removes the active file from Cerberus's configuration.
 *   `Cerberus: Generate Summary`: Generates a summary for the active core module file.
 
-## Contributing
+### Contributing
 This project is open for contributions. Please feel free to open an issue or submit a pull request.
 1.  **Fork** the repository.
 2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
@@ -115,7 +114,7 @@ This project is open for contributions. Please feel free to open an issue or sub
 4.  Push to the branch (`git push origin feature/AmazingFeature`).
 5.  Open a **Pull Request**.
 
-## License
+### License
 
 This project is licensed under the Apache-2.0 License - see the [LICENSE.md](https://github.com/harshaljanjani/cerberus/blob/main/LICENSE.md) file for details.
 
