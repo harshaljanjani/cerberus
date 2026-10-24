@@ -112,10 +112,10 @@ This project is open for contributions. Please feel free to open an issue or sub
 2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
 3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
 4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a **Pull Request**.
+5.  Open a **Pull Request (PR)**.
 
 ### License
 
 This project is licensed under the Apache-2.0 License - see the [LICENSE.md](https://github.com/harshaljanjani/cerberus/blob/main/LICENSE.md) file for details.
 
-*Happy multi-backend coding with Keras; may Cerberus make it smoother and smarter for you!*
+Happy multi-backend coding with Keras; may Cerberus make it smoother and smarter for you!
